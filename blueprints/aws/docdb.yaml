@@ -1,0 +1,9 @@
+apiVersion: aws.arcotech.io/v1alpha1
+kind: XDocDbCluster
+metadata:
+  name: zimbra
+spec:
+  region: us-east-1
+  parameters:
+    instanceCount: 1
+    environment: prd
