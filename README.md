@@ -50,6 +50,14 @@ Criação de credenciais:
 "Criptografe" em base 64 os valores de access-key e secret-key e coloque no arquivo dependencies/credentials.yaml
 
 
+## 🔧 Aplique as Compositions
+
+Necessário antes de aplicar o blueprint, aplicar as compositions, pois a mesma permitirá que o blueprint seja reconhecido dentro do cluster
+
+```sh
+kubectl apply -f compositions/aws/
+```
+
 
 ### 🚀 Aplicação de um Blueprint
 
