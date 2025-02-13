@@ -10,6 +10,7 @@ Este repositório contém blueprints para provisionamento de diferentes serviço
 
 ### ☁️ AWS
 - Docdb (Banco de Dados Não Relacional)
+- S3 + Cloudfront (Para sites estáticos)
 
 
 ### ☁️ GCP

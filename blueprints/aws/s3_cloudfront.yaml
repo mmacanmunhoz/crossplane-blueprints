@@ -1,0 +1,26 @@
+apiVersion: platform.arcocv.co/v1alpha1
+kind: Staticwebpage
+metadata:
+  name: my-static-webpage
+spec:
+  deletionPolicy: Delete
+  parameters:
+    environment: production
+    bucket:
+      name: my-static-bucket
+      path: /website
+      forceDestroy: true
+    defaultRootObject: index.html
+    description: "My Static Web Page Deployment"
+    enabled: true
+    region: us-east-1
+    tags:
+      arco:app-id: staticwebpage-my-static-webpage
+      arco:app-role: "Static Web Page/Front"
+      arco:cloud-center-id: "default-namespace"
+      arco:department: "engineering"
+      arco:env: production
+      arco:managed-by: "crossplane"
+      arco:service: my-static-webpage-iac
+  providerConfigRef:
+    name: default
