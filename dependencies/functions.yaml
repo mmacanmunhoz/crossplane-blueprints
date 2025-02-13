@@ -1,0 +1,35 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+  namespace: crossplane-system
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.1.4
+
+---
+
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-go-templating
+  namespace: crossplane-system
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-go-templating:v0.9.1
+
+---
+
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-environment-config
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-environment-configs:v0.2.0
+
+---
+
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-status-transformer
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-status-transformer:v0.4.0

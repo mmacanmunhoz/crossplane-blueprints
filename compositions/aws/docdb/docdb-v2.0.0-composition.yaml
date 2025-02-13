@@ -1,0 +1,310 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: docdb-v2.0.0
+  namespace: crossplane-system
+  labels:
+    version: "v2.0.0"
+spec:
+  compositeTypeRef:
+    apiVersion: aws.arcotech.io/v1alpha1
+    kind: XDocDbCluster
+  mode: Pipeline
+  pipeline:
+    - step: generate-resources
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            ---
+            apiVersion: docdb.aws.upbound.io/v1beta1
+            kind: SubnetGroup
+            metadata:
+              annotations:
+                crossplane.io/external-name: {{ .observed.composite.resource.metadata.name }}-subnetgroup
+                gotemplating.fn.crossplane.io/composition-resource-name: subnetgroup
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                description: My {{ .observed.composite.resource.metadata.name }}-docdb subnet group
+                region: {{ .observed.composite.resource.spec.region }}
+                subnetIds:
+                {{ range .observed.composite.resource.spec.parameters.subnets }}
+                  - {{ . }}
+                {{ end }}
+
+            ---
+            apiVersion: docdb.aws.upbound.io/v1beta1
+            kind: ClusterParameterGroup
+            metadata:
+              annotations:
+                crossplane.io/external-name: {{ .observed.composite.resource.metadata.name }}-parameter-docdb
+                gotemplating.fn.crossplane.io/composition-resource-name: parameter
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                description: {{ .observed.composite.resource.metadata.name }} docdb cluster parameter group
+                family: {{ .observed.composite.resource.spec.parameters.family }}
+                parameter:
+                  {{- $parameters := .observed.composite.resource.spec.parameters.clusterParameters | default (list (dict "name" "tls" "value" "enabled")) }}
+                  {{- range $parameters }}
+                  - name: {{ .name }}
+                    value: {{ .value }}
+                  {{- end }}
+                region: {{ .observed.composite.resource.spec.region }}
+
+            ---
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: SecurityGroup
+            metadata:
+              labels:
+                arco.crossplane.io/security: {{ .observed.composite.resource.metadata.name }}-sg
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: sg
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                name: {{ .observed.composite.resource.metadata.name }}-sg
+                vpcId: {{ .observed.composite.resource.spec.parameters.vpcId }}
+                tags:
+                  type: {{ .observed.composite.resource.metadata.name }}
+                region: {{ .observed.composite.resource.spec.region }}
+
+            ---
+            apiVersion: ec2.aws.upbound.io/v1beta1
+            kind: SecurityGroupRule
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: rule
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                cidrBlocks:
+                {{ range .observed.composite.resource.spec.parameters.networkAllow }}
+                  - {{ . }}
+                {{- end }}
+                fromPort: 0
+                protocol: tcp
+                securityGroupIdSelector:
+                  matchLabels:
+                    arco.crossplane.io/security: {{ .observed.composite.resource.metadata.name }}-sg
+                toPort: 65535
+                type: ingress
+                region: {{ .observed.composite.resource.spec.region }}
+
+            ---
+            apiVersion: docdb.aws.upbound.io/v1beta1
+            kind: Cluster
+            metadata:
+              labels:
+                arco.crossplane.io/docdb: {{ .observed.composite.resource.metadata.name }}-cluster
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: cluster
+                crossplane.io/external-name: {{ .observed.composite.resource.metadata.name }}-docdb-cluster
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                autoGeneratePassword: {{ .observed.composite.resource.spec.parameters.autoGeneratePassword }}
+                backupRetentionPeriod: {{ .observed.composite.resource.spec.parameters.backupRetentionPeriod }}
+                engine: docdb
+                masterPasswordSecretRef:
+                  key: secret
+                  name: {{ .observed.composite.resource.metadata.name }}-docdb-creds
+                  namespace: crossplane-system
+                masterUsername: {{ .observed.composite.resource.spec.parameters.masterUsername }}
+                preferredBackupWindow: {{ .observed.composite.resource.spec.parameters.preferredBackupWindow }}
+                dbSubnetGroupName: {{ .observed.composite.resource.metadata.name }}-subnetgroup
+                skipFinalSnapshot: {{ .observed.composite.resource.spec.parameters.skipFinalSnapshot }}
+                vpcSecurityGroupIdSelector:
+                  matchLabels:
+                    arco.crossplane.io/security: {{ .observed.composite.resource.metadata.name }}-sg
+                dbClusterParameterGroupName: {{ .observed.composite.resource.metadata.name }}-parameter-docdb
+                region: {{ .observed.composite.resource.spec.region }}
+              writeConnectionSecretToRef:
+                name: {{ .observed.composite.resource.metadata.name }}-cluster-secret
+                namespace: crossplane-system
+
+
+
+            {{ $instanceCount := int .observed.composite.resource.spec.parameters.instanceCount }}
+            {{ $start := 0 }}
+            {{ $end := $instanceCount }}
+            {{ $environment := .observed.composite.resource.spec.parameters.environment | default "stg" }}
+
+            {{ range untilStep $start $end 1 }}
+            ---
+            apiVersion: docdb.aws.upbound.io/v1beta1
+            kind: ClusterInstance
+            metadata:
+              name: {{ $.observed.composite.resource.metadata.name }}-cluster-instances-{{ . }}
+              labels:
+                arco.crossplane.io/docdb: {{ $.observed.composite.resource.metadata.name }}-docdb-instance-{{ . }}
+              annotations:
+                crossplane.io/external-name: {{ $.observed.composite.resource.metadata.name }}-docdb-instance-{{ . }}
+                gotemplating.fn.crossplane.io/composition-resource-name: instance-{{ . }}
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                clusterIdentifierSelector:
+                  matchLabels:
+                    arco.crossplane.io/docdb: {{ $.observed.composite.resource.metadata.name }}-cluster
+                preferredMaintenanceWindow: {{ $.observed.composite.resource.spec.parameters.preferredMaintenanceWindow }}
+                {{ if eq $environment "stg" }}
+                instanceClass: db.t4g.medium
+                {{ else }}
+                instanceClass: db.r5.large
+                {{ end }}
+                region: {{ $.observed.composite.resource.spec.region }}
+            {{ end }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}-push-secret
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: secret
+            spec:
+              deletionPolicy: Delete
+              forProvider:
+                manifest:
+                  apiVersion: external-secrets.io/v1alpha1
+                  kind: PushSecret
+                  metadata:
+                    name: {{ .observed.composite.resource.metadata.name }}-push-secret
+                    namespace: crossplane-system
+                  spec:
+                    updatePolicy: Replace
+                    refreshInterval: "1m"
+                    secretStoreRefs:
+                      - name: aws-clusterstore
+                        kind: ClusterSecretStore
+                    selector:
+                      secret:
+                        name: {{ .observed.composite.resource.metadata.name }}-cluster-secret
+                    data:
+                      - match:
+                          secretKey: arn
+                          remoteRef:
+                            remoteKey: demo-secret-new
+                            property: arn
+                      - match:
+                          secretKey: endpoint
+                          remoteRef:
+                            remoteKey: demo-secret-new
+                            property: endpoint
+                      - match:
+                          secretKey: password
+                          remoteRef:
+                            remoteKey: demo-secret-new
+                            property: password
+
+
+
+    - step: status-handler
+      functionRef:
+        name: function-status-transformer
+      input:
+        apiVersion: function-status-transformer.fn.crossplane.io/v1beta1
+        kind: StatusTransformation
+        statusConditionHooks:
+        - matchers:
+          - resources: 
+            - name: "cluster"
+            conditions:
+            - type: Ready
+              status: "True"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ClusterReady
+              status: "True"
+        - matchers:
+          - resources: 
+            - name: "cluster"
+            conditions:
+            - type: Ready
+              status: "False"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ClusterReady
+              status: "False"
+        - matchers:
+          - resources: 
+            - name: "sg"
+            conditions:
+            - type: Ready
+              status: "False"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: SgReady
+              status: "False"
+        - matchers:
+          - resources: 
+            - name: "sg"
+            conditions:
+            - type: Ready
+              status: "True"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: SgReady
+              status: "True"
+        - matchers:
+          - resources: 
+            - name: "parameter"
+            conditions:
+            - type: Ready
+              status: "True"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ParameterReady
+              status: "True"
+        - matchers:
+          - resources: 
+            - name: "parameter"
+            conditions:
+            - type: Ready
+              status: "False"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ParameterReady
+              status: "False"
+        - matchers:
+          - resources: 
+            - name: "subnetgroup"
+            conditions:
+            - type: Ready
+              status: "False"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ParameterReady
+              status: "False"
+        - matchers:
+          - resources: 
+            - name: "subnetgroup"
+            conditions:
+            - type: Ready
+              status: "True"
+          setConditions:
+          - target: XDocDbCluster
+            condition:
+              type: ParameterReady
+              status: "True"
+
+            
+
+
+
+
+
+
+
