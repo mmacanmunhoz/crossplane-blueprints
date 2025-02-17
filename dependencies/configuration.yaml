@@ -1,25 +1,9 @@
-
-apiVersion: aws.upbound.io/v1beta1
-kind: ProviderConfig
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
 metadata:
-  name: default
+  name: configuration-gh-docdb
   namespace: crossplane-system
 spec:
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: crossplane-system
-      name: aws-secret
-      key: creds
-
-
----
-
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: ProviderConfig
-metadata:
-  name: default
-  namespace: crossplane-system
-spec:
-  credentials:
-    source: InjectedIdentity
+  package: ghcr.io/<organization>/crossplane-pkg/docdb:v4.0.0
+  packagePullSecrets:
+    - name: ghcr-credentials
