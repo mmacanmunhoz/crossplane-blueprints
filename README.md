@@ -50,13 +50,49 @@ Criação de credenciais:
 "Criptografe" em base 64 os valores de access-key e secret-key e coloque no arquivo dependencies/credentials.yaml
 
 
-## 🔧 Aplique as Compositions
+## 🚀 CI/CD - Geração Automática das Configurations
 
-Necessário antes de aplicar o blueprint, aplicar as compositions, pois a mesma permitirá que o blueprint seja reconhecido dentro do cluster
+Este repositório conta com um workflow automatizado de CI/CD no GitHub Actions, que empacota e publica as Configurations para o GitHub Container Registry (GHCR).
+✅ O que esse CI/CD faz?
 
-```sh
-kubectl apply -f compositions/aws/
+    Sempre que um novo commit ou tag for adicionado, o CI/CD gera e publica a Configuration correspondente.
+    Essa Configuration contém todos os providers, functions e compositions necessários para o funcionamento dos blueprints.
+    A instalação da Configuration automatiza o provisionamento do Crossplane.
+
+📌 Como instalar a Configuration?
+
+Após o CI/CD gerar a Configuration, basta aplicá-la no cluster para que todos os componentes necessários sejam instalados automaticamente:
+
+kubectl apply -f dependencies/configuration.yaml
+
+Esse comando irá instalar automaticamente:
+
+    Providers (como AWS, GCP, Azure)
+    Functions (caso existam funções personalizadas para validações e transformações)
+    Compositions (para provisionamento dos recursos)
+
+
+No caso como estamos usando o github como registry privado, é necessário criar o segredo do github e associa-lo ao configuration para que possamos autenticar no registry privado
+
 ```
+kubectl create secret docker-registry ghcr-credentials \
+  --namespace crossplane-system \
+  --docker-server=ghcr.io \
+  --docker-username=<username>> \
+  --docker-password=<token>
+```
+
+```
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-gh-docdb
+  namespace: crossplane-system
+spec:
+  package: ghcr.io/<organization>/crossplane-pkg/docdb:v4.0.0
+  packagePullSecrets:
+    - name: ghcr-credentials
+``
 
 
 ### 🚀 Aplicação de um Blueprint
@@ -72,17 +108,15 @@ kubectl apply -f blueprints/aws/docdb.yaml
 ## 📁 Estrutura do Repositório
 
 ```
-.
 ├── blueprints
 │   └── aws
 │       └── docdb.yaml
-├── compositions
-│   └── aws
-│       └── docdb
-│           ├── docdb-v1.0.0-composition.yaml
-│           ├── docdb-v2.0.0-composition.yaml
-│           ├── external-secret.yaml
-│           └── xrd.yaml
+├── configurations
+│   └── docdb
+│       ├── crossplane.yaml
+│       ├── docdb-v1.0.0-composition.yaml
+│       ├── docdb-v2.0.0-composition.yaml
+│       └── xrd.yaml
 ├── dependencies
 │   ├── configuration.yaml
 │   ├── credentials.yaml
@@ -91,7 +125,6 @@ kubectl apply -f blueprints/aws/docdb.yaml
 │   │   └── permission.yaml
 │   ├── functions.yaml
 │   └── provider.yaml
-└── README.mdbuições.md
 └── README.md
 ```
 
