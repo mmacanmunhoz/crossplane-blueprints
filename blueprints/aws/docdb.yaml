@@ -37,3 +37,13 @@ spec:
       remoteRef:
         key: demo-secret-new
         property: password
+
+---
+
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-docdb
+  namespace: crossplane-system
+spec:
+  package: xpkg.upbound.io/mmacanmunhoz/docdb:v3.0.0

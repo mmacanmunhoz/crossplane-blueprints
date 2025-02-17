@@ -1,0 +1,32 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: crossplane-configuration
+  annotations:
+    meta.crossplane.io/maintainer: Macan
+    meta.crossplane.io/source: github.com/mmacanmunhoz/crossplane-blueprints
+    meta.crossplane.io/license: MIT
+    meta.crossplane.io/description: Full Operation DocDB
+    meta.crossplane.io/readme: A configuration package that define DocDB and Claim types
+spec:
+  crossplane:
+    version: ">=v1.18.2"
+  dependsOn:
+    - provider: xpkg.upbound.io/upbound/provider-aws-s3
+      version: "v1.17.0"
+    - provider: xpkg.upbound.io/upbound/provider-aws-dynamodb
+      version: "v1.20.1"
+    - provider: xpkg.upbound.io/upbound/provider-aws-docdb
+      version: "v1.0.0"
+    - provider: xpkg.upbound.io/upbound/provider-aws-ec2
+      version: "v1.0.0"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
+      version: "v0.34.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+      version: "v0.1.4"
+    - function: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      version: "v0.9.1"
+    - function: xpkg.upbound.io/crossplane-contrib/function-environment-configs
+      version: "v0.2.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-status-transformer
+      version: "v0.4.0"
