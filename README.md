@@ -53,7 +53,7 @@ Criação de credenciais:
 ## 🚀 CI/CD - Geração Automática das Configurations
 
 Este repositório conta com um workflow automatizado de CI/CD no GitHub Actions, que empacota e publica as Configurations para o GitHub Container Registry (GHCR).
-✅ O que esse CI/CD faz?
+- O que esse CI/CD faz?
 
     Sempre que um novo commit ou tag for adicionado, o CI/CD gera e publica a Configuration correspondente.
     Essa Configuration contém todos os providers, functions e compositions necessários para o funcionamento dos blueprints.
