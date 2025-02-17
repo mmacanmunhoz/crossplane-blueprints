@@ -92,7 +92,7 @@ spec:
   package: ghcr.io/<organization>/crossplane-pkg/docdb:v4.0.0
   packagePullSecrets:
     - name: ghcr-credentials
-``
+```
 
 
 ### 🚀 Aplicação de um Blueprint
